@@ -57,6 +57,7 @@ export const CustomerView: React.FC<Props> = ({ user, allRestaurants, onLogout, 
   
   const [isSearchingUrgent, setIsSearchingUrgent] = useState(false);
   const [urgentRestaurant, setUrgentRestaurant] = useState<Restaurant | null>(null);
+  const [selectedTag, setSelectedTag] = useState<string | null>(null);
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -469,20 +470,28 @@ export const CustomerView: React.FC<Props> = ({ user, allRestaurants, onLogout, 
     }, 2000);
   };
 
-  // Filter Logic (City + Urgent + Search)
+  // Filter Logic (City + Urgent + Search + Tag)
   const filteredRestaurants = useMemo(() => {
     let list = restaurants;
     if (selectedCity && selectedCity !== 'Toutes') list = list.filter(r => r.city === selectedCity);
     if (urgentMode) list = list.filter(r => r.isOpen && r.preparationTime <= 20);
+    if (selectedTag) {
+        const tag = selectedTag.toLowerCase();
+        list = list.filter(r =>
+            r.name.toLowerCase().includes(tag) ||
+            r.description?.toLowerCase().includes(tag) ||
+            r.menu.some(m => m.name.toLowerCase().includes(tag) || m.description?.toLowerCase().includes(tag) || m.category.toLowerCase().includes(tag))
+        );
+    }
     if (searchQuery) {
         const query = searchQuery.toLowerCase();
         list = list.filter(r => 
           r.name.toLowerCase().includes(query) || 
-          r.description.toLowerCase().includes(query)
+          r.description?.toLowerCase().includes(query)
         );
     }
     return list;
-  }, [restaurants, urgentMode, selectedCity, searchQuery]);
+  }, [restaurants, urgentMode, selectedCity, searchQuery, selectedTag]);
 
   // Reset pagination when filters change
   useEffect(() => {
@@ -804,8 +813,18 @@ export const CustomerView: React.FC<Props> = ({ user, allRestaurants, onLogout, 
                         <Zap size={16} className={`mr-1 ${urgentMode ? 'fill-white' : 'fill-none'}`} />
                         Urgent - J'ai faim !
                     </button>
-                    <button className="px-4 py-2 rounded-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 font-medium text-sm whitespace-nowrap shadow-sm">🍖 Grillades</button>
-                    <button className="px-4 py-2 rounded-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 font-medium text-sm whitespace-nowrap shadow-sm">🍗 Poulet</button>
+                    <button
+                        onClick={() => setSelectedTag(selectedTag === 'Grillades' ? null : 'Grillades')}
+                        className={`px-4 py-2 rounded-full border text-sm whitespace-nowrap shadow-sm transition-all font-bold ${selectedTag === 'Grillades' ? 'bg-brand-500 text-white border-brand-500' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-700'}`}
+                    >
+                        🍖 Grillades
+                    </button>
+                    <button
+                        onClick={() => setSelectedTag(selectedTag === 'Poulet' ? null : 'Poulet')}
+                        className={`px-4 py-2 rounded-full border text-sm whitespace-nowrap shadow-sm transition-all font-bold ${selectedTag === 'Poulet' ? 'bg-brand-500 text-white border-brand-500' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-700'}`}
+                    >
+                        🍗 Poulet
+                    </button>
                 </div>
 
                 {/* CONTENT */}

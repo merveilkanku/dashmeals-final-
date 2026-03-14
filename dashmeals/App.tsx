@@ -274,6 +274,10 @@ function App() {
     // La prochaine visite ou refresh chargera les données DB.
   };
 
+  const handleUpdateUser = (updatedUser: User) => {
+    setCurrentUser(updatedUser);
+  };
+
   // Fonction pour force la création du restaurant si l'automatisme a échoué
   const handleManualRestaurantCreation = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -466,6 +470,7 @@ function App() {
             user={currentUser} 
             restaurant={myRestaurant} 
             onUpdateRestaurant={handleUpdateRestaurant}
+            onUpdateUser={handleUpdateUser}
             onLogout={handleLogout}
             theme={theme}
             setTheme={setTheme}

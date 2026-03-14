@@ -135,16 +135,15 @@ export const ChatWindow: React.FC<Props> = ({ orderId, currentUser, otherUserNam
   };
 
   const markMessagesAsRead = async () => {
-      // is_read column not yet available in schema cache
-      // try {
-      //     await supabase.from('messages')
-      //       .update({ is_read: true })
-      //       .eq('order_id', orderId)
-      //       .neq('sender_id', currentUser.id)
-      //       .eq('is_read', false);
-      // } catch (err) {
-      //     console.error("Error marking messages as read", err);
-      // }
+      try {
+          await supabase.from('messages')
+            .update({ is_read: true })
+            .eq('order_id', orderId)
+            .neq('sender_id', currentUser.id)
+            .eq('is_read', false);
+      } catch (err) {
+          console.error("Error marking messages as read", err);
+      }
   };
 
   const handleSend = async (e: React.FormEvent) => {
