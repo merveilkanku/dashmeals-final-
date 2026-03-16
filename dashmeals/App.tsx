@@ -10,6 +10,7 @@ import { SplashScreen } from './components/SplashScreen';
 import { AlertTriangle, Store, ArrowRight } from 'lucide-react';
 import { Toaster } from 'sonner';
 import { App as CapApp } from '@capacitor/app';
+import { Browser } from '@capacitor/browser';
 
 function App() {
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
@@ -62,16 +63,21 @@ function App() {
         CapApp.addListener('appUrlOpen', async (data: any) => {
             console.log("App opened with URL:", data.url);
 
+            // Close the browser tab opened for OAuth if it's still open
+            Browser.close().catch(() => {});
+
             let accessToken: string | null = null;
             let refreshToken: string | null = null;
 
-            if (data.url.includes('#')) {
-                const hash = data.url.split('#')[1];
+            // Handle URL that might start with custom scheme com.dashmeals.android://
+            let cleanUrl = data.url;
+            if (cleanUrl.includes('#')) {
+                const hash = cleanUrl.split('#')[1];
                 const params = new URLSearchParams(hash);
                 accessToken = params.get('access_token');
                 refreshToken = params.get('refresh_token');
-            } else if (data.url.includes('?')) {
-                const query = data.url.split('?')[1];
+            } else if (cleanUrl.includes('?')) {
+                const query = cleanUrl.split('?')[1];
                 const params = new URLSearchParams(query);
                 accessToken = params.get('access_token');
                 refreshToken = params.get('refresh_token');
@@ -88,6 +94,8 @@ function App() {
                     if (user) {
                         await fetchUserProfile(user.id, user.email!, user.user_metadata);
                     }
+                    // Clean the URL to remove the hash
+                    window.history.replaceState(null, '', '/');
                 } else {
                     console.error("Error setting session from deep link:", error.message);
                 }

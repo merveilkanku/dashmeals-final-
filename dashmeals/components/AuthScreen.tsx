@@ -4,6 +4,7 @@ import { User, UserRole, BusinessType } from '../types';
 import { CITIES_RDC, APP_LOGO_URL } from '../constants';
 import { User as UserIcon, Store, AlertCircle, MapPin, Mail, Phone } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
+import { Browser } from '@capacitor/browser';
 
 interface Props {
   onLogin: (user: User, businessData?: any) => void;
@@ -94,77 +95,63 @@ export const AuthScreen: React.FC<Props> = ({ onLogin, isSupabaseReachable = tru
       }));
 
       const currentOrigin = window.location.origin;
-
-      // Check if we are running in Capacitor (native app)
       const isNative = Capacitor.getPlatform() !== 'web';
-
-      // For native app, use custom scheme. For web/preview, use current origin.
-      // We also check if we are in the AI studio preview to avoid using the scheme there.
       const isPreview = currentOrigin.includes('.run.app');
+
+      // Crucial: The redirect URL for Native Android MUST be the custom scheme
+      // The user is seeing localhost:3000 because Supabase defaults to it when not configured.
       const redirectUrl = (isNative && !isPreview) ? 'com.dashmeals.android://' : currentOrigin;
 
       console.log("OAuth Redirect URL:", redirectUrl);
 
-      if (isPreview) {
-          // In preview (iframe), we MUST use a popup
-          const { data, error } = await supabase.auth.signInWithOAuth({
-            provider: provider,
-            options: {
-              redirectTo: currentOrigin,
-              skipBrowserRedirect: true, // IMPORTANT: Get URL instead of redirecting
-              queryParams: {
-                access_type: 'offline',
-                prompt: 'consent',
-              }
-            }
-          });
-          
-          if (error) throw error;
-
-          if (data?.url) {
-            // Open popup
-            const width = 500;
-            const height = 650;
-            const left = window.screen.width / 2 - width / 2;
-            const top = window.screen.height / 2 - height / 2;
-            
-            const popup = window.open(
-              data.url,
-              'oauth_popup',
-              `width=${width},height=${height},left=${left},top=${top},status=no,menubar=no,toolbar=no`
-            );
-
-            // Check if popup was blocked
-            if (!popup || popup.closed || typeof popup.closed === 'undefined') {
-                setError("Le popup de connexion a été bloqué. Veuillez autoriser les popups pour ce site dans les réglages de votre navigateur.");
-                setLoading(false);
-                return;
-            }
-
-            // Poll to see if popup is closed (user cancelled)
-            const timer = setInterval(() => {
-                if (popup.closed) {
-                    clearInterval(timer);
-                    setLoading(false); // Reset loading state if closed without success
-                }
-            }, 1000);
+      // In both preview and native, we want the URL back to open it manually
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: provider,
+        options: {
+          redirectTo: redirectUrl,
+          skipBrowserRedirect: true, // Get URL instead of auto-redirecting
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
           }
-      } else {
-          // In APK or standard web, use normal redirect (no popup)
-          // This fixes the issue where window.open opens the external browser in APKs
-          const { error } = await supabase.auth.signInWithOAuth({
-            provider: provider,
-            options: {
-              redirectTo: redirectUrl,
-              // skipBrowserRedirect is false by default, so it will redirect the current window
-              queryParams: {
-                access_type: 'offline',
-                prompt: 'consent',
+        }
+      });
+
+      if (error) throw error;
+
+      if (data?.url) {
+        if (isNative && !isPreview) {
+          // In Native App, use Capacitor Browser to handle the external tab
+          await Browser.open({ url: data.url, windowName: '_self' });
+        } else if (isPreview) {
+          // In Preview (iframe), use a popup
+          const width = 500;
+          const height = 650;
+          const left = window.screen.width / 2 - width / 2;
+          const top = window.screen.height / 2 - height / 2;
+
+          const popup = window.open(
+            data.url,
+            'oauth_popup',
+            `width=${width},height=${height},left=${left},top=${top},status=no,menubar=no,toolbar=no`
+          );
+
+          if (!popup || popup.closed || typeof popup.closed === 'undefined') {
+              setError("Le popup de connexion a été bloqué.");
+              setLoading(false);
+              return;
+          }
+
+          const timer = setInterval(() => {
+              if (popup.closed) {
+                  clearInterval(timer);
+                  setLoading(false);
               }
-            }
-          });
-          
-          if (error) throw error;
+          }, 1000);
+        } else {
+          // Standard Web, just redirect current window
+          window.location.href = data.url;
+        }
       }
     } catch (err: any) {
       console.error("OAuth Error:", err);
