@@ -9,6 +9,7 @@ import { SuperAdminDashboard } from './components/SuperAdminDashboard';
 import { SplashScreen } from './components/SplashScreen';
 import { AlertTriangle, Store, ArrowRight } from 'lucide-react';
 import { Toaster } from 'sonner';
+import { App as CapApp } from '@capacitor/app';
 
 function App() {
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
@@ -56,6 +57,28 @@ function App() {
 
   // Initialisation et écoute de la session
   useEffect(() => {
+    // Handle Capacitor deep links for OAuth redirection
+    CapApp.addListener('appUrlOpen', async (data: any) => {
+        const url = new URL(data.url);
+        const params = new URLSearchParams(url.hash.substring(1)); // for #access_token=...
+        const accessToken = params.get('access_token');
+        const refreshToken = params.get('refresh_token');
+
+        if (accessToken && refreshToken) {
+            const { error } = await supabase.auth.setSession({
+                access_token: accessToken,
+                refresh_token: refreshToken,
+            });
+            if (!error) {
+                // If we are in the middle of a process, we might need to reload or fetch profile
+                const { data: { user } } = await supabase.auth.getUser();
+                if (user) {
+                    await fetchUserProfile(user.id, user.email!, user.user_metadata);
+                }
+            }
+        }
+    });
+
     const initSession = async () => {
         try {
             // 1. Handle OAuth popup callback if we are in a popup
