@@ -58,26 +58,44 @@ function App() {
   // Initialisation et écoute de la session
   useEffect(() => {
     // Handle Capacitor deep links for OAuth redirection
-    CapApp.addListener('appUrlOpen', async (data: any) => {
-        const url = new URL(data.url);
-        const params = new URLSearchParams(url.hash.substring(1)); // for #access_token=...
-        const accessToken = params.get('access_token');
-        const refreshToken = params.get('refresh_token');
+    const setupDeepLink = async () => {
+        CapApp.addListener('appUrlOpen', async (data: any) => {
+            console.log("App opened with URL:", data.url);
 
-        if (accessToken && refreshToken) {
-            const { error } = await supabase.auth.setSession({
-                access_token: accessToken,
-                refresh_token: refreshToken,
-            });
-            if (!error) {
-                // If we are in the middle of a process, we might need to reload or fetch profile
-                const { data: { user } } = await supabase.auth.getUser();
-                if (user) {
-                    await fetchUserProfile(user.id, user.email!, user.user_metadata);
+            let accessToken: string | null = null;
+            let refreshToken: string | null = null;
+
+            if (data.url.includes('#')) {
+                const hash = data.url.split('#')[1];
+                const params = new URLSearchParams(hash);
+                accessToken = params.get('access_token');
+                refreshToken = params.get('refresh_token');
+            } else if (data.url.includes('?')) {
+                const query = data.url.split('?')[1];
+                const params = new URLSearchParams(query);
+                accessToken = params.get('access_token');
+                refreshToken = params.get('refresh_token');
+            }
+
+            if (accessToken && refreshToken) {
+                console.log("OAuth tokens found in URL, setting session...");
+                const { error } = await supabase.auth.setSession({
+                    access_token: accessToken,
+                    refresh_token: refreshToken,
+                });
+                if (!error) {
+                    const { data: { user } } = await supabase.auth.getUser();
+                    if (user) {
+                        await fetchUserProfile(user.id, user.email!, user.user_metadata);
+                    }
+                } else {
+                    console.error("Error setting session from deep link:", error.message);
                 }
             }
-        }
-    });
+        });
+    };
+
+    setupDeepLink();
 
     const initSession = async () => {
         try {

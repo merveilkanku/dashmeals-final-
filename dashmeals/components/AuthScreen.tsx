@@ -3,6 +3,7 @@ import { supabase, isDefaultProject } from '../lib/supabase';
 import { User, UserRole, BusinessType } from '../types';
 import { CITIES_RDC, APP_LOGO_URL } from '../constants';
 import { User as UserIcon, Store, AlertCircle, MapPin, Mail, Phone } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
 
 interface Props {
   onLogin: (user: User, businessData?: any) => void;
@@ -95,15 +96,14 @@ export const AuthScreen: React.FC<Props> = ({ onLogin, isSupabaseReachable = tru
       const currentOrigin = window.location.origin;
 
       // Check if we are running in Capacitor (native app)
-      const isNative = window.hasOwnProperty('Capacitor');
+      const isNative = Capacitor.getPlatform() !== 'web';
 
       // For native app, use custom scheme. For web/preview, use current origin.
-      const redirectUrl = isNative ? 'com.dashmeals.android://' : currentOrigin;
+      // We also check if we are in the AI studio preview to avoid using the scheme there.
+      const isPreview = currentOrigin.includes('.run.app');
+      const redirectUrl = (isNative && !isPreview) ? 'com.dashmeals.android://' : currentOrigin;
 
       console.log("OAuth Redirect URL:", redirectUrl);
-
-      // Detect if we are in the AI Studio preview
-      const isPreview = currentOrigin.includes('.run.app');
 
       if (isPreview) {
           // In preview (iframe), we MUST use a popup
