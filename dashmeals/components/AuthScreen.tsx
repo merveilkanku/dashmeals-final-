@@ -95,12 +95,13 @@ export const AuthScreen: React.FC<Props> = ({ onLogin, isSupabaseReachable = tru
       }));
 
       const currentOrigin = window.location.origin;
-      const isNative = Capacitor.getPlatform() !== 'web';
+      const isNative = Capacitor.isNativePlatform();
       const isPreview = currentOrigin.includes('.run.app');
 
       // Crucial: The redirect URL for Native Android MUST be the custom scheme
       // The user is seeing localhost:3000 because Supabase defaults to it when not configured.
-      const redirectUrl = (isNative && !isPreview) ? 'com.dashmeals.android://' : currentOrigin;
+      // We use /callback to be more explicit for some OAuth providers
+      const redirectUrl = isNative ? 'com.dashmeals.android://callback' : currentOrigin;
 
       console.log("OAuth Redirect URL:", redirectUrl);
 

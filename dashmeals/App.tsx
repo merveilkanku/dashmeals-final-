@@ -69,8 +69,14 @@ function App() {
             let accessToken: string | null = null;
             let refreshToken: string | null = null;
 
-            // Handle URL that might start with custom scheme com.dashmeals.android://
+            // Handle URL that might start with custom scheme com.dashmeals.android://callback
             let cleanUrl = data.url;
+
+            // Check if the URL matches our scheme
+            if (!cleanUrl.startsWith('com.dashmeals.android://')) {
+                return;
+            }
+
             if (cleanUrl.includes('#')) {
                 const hash = cleanUrl.split('#')[1];
                 const params = new URLSearchParams(hash);
