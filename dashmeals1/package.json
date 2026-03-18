@@ -10,6 +10,7 @@
     "lint": "tsc --noEmit"
   },
   "dependencies": {
+    "@capacitor/browser": "^8.0.2",
     "@supabase/supabase-js": "2.39.7",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.263.1",

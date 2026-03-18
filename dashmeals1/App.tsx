@@ -107,22 +107,33 @@ function App() {
     // Native Deep Link handling for Google OAuth
     const setupDeepLinks = async () => {
         const listener = await CapApp.addListener('appUrlOpen', async (data: any) => {
+            console.log("App opened with URL:", data.url);
             const url = new URL(data.url);
-            // Supabase session data is often in the hash for OAuth redirects
-            if (url.hash && (url.hash.includes('access_token') || url.hash.includes('refresh_token'))) {
-                // Remove the # to parse as search params
-                const params = new URLSearchParams(url.hash.substring(1));
-                const access_token = params.get('access_token');
-                const refresh_token = params.get('refresh_token');
 
-                if (access_token && refresh_token) {
-                    const { error } = await supabase.auth.setSession({
-                        access_token,
-                        refresh_token,
-                    });
-                    if (error) console.error("Error setting native session:", error.message);
-                    // The onAuthStateChange will trigger fetchUserProfile
-                }
+            // Handle Supabase OAuth fragment (#access_token=...)
+            let access_token = '';
+            let refresh_token = '';
+
+            if (url.hash) {
+                const params = new URLSearchParams(url.hash.substring(1));
+                access_token = params.get('access_token') || '';
+                refresh_token = params.get('refresh_token') || '';
+            }
+
+            // Also check search params as fallback (?access_token=...)
+            if (!access_token && url.search) {
+                const params = new URLSearchParams(url.search);
+                access_token = params.get('access_token') || '';
+                refresh_token = params.get('refresh_token') || '';
+            }
+
+            if (access_token && refresh_token) {
+                console.log("Setting native session from deep link");
+                const { error } = await supabase.auth.setSession({
+                    access_token,
+                    refresh_token,
+                });
+                if (error) console.error("Error setting native session:", error.message);
             }
         });
         return listener;

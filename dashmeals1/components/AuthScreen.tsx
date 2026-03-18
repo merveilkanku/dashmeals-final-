@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { Capacitor } from '@capacitor/core';
+import { Browser } from '@capacitor/browser';
 import { supabase, isDefaultProject } from '../lib/supabase';
 import { User, UserRole, BusinessType } from '../types';
 import { CITIES_RDC, APP_LOGO_URL } from '../constants';
@@ -93,30 +95,34 @@ export const AuthScreen: React.FC<Props> = ({ onLogin, isSupabaseReachable = tru
           city,
       }));
 
-      const currentOrigin = window.location.origin;
-      console.log("OAuth Redirect URL:", currentOrigin);
+      const isNative = Capacitor.isNativePlatform();
+      // Important: Ensure this URL is added to Supabase "Redirect URLs"
+      const redirectTo = isNative
+        ? 'com.dashmeals.android://callback'
+        : window.location.origin;
 
-      // Detect if we are in the AI Studio preview
-      const isPreview = currentOrigin.includes('.run.app');
+      console.log("OAuth Redirect URL:", redirectTo);
 
-      if (isPreview) {
-          // In preview (iframe), we MUST use a popup
-          const { data, error } = await supabase.auth.signInWithOAuth({
-            provider: provider,
-            options: {
-              redirectTo: currentOrigin,
-              skipBrowserRedirect: true, // IMPORTANT: Get URL instead of redirecting
-              queryParams: {
-                access_type: 'offline',
-                prompt: 'consent',
-              }
-            }
-          });
-          
-          if (error) throw error;
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: provider,
+        options: {
+          redirectTo: redirectTo,
+          skipBrowserRedirect: true, // We handle redirection manually
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          }
+        }
+      });
 
-          if (data?.url) {
-            // Open popup
+      if (error) throw error;
+
+      if (data?.url) {
+        if (isNative) {
+            // Use Capacitor Browser to open the OAuth URL
+            await Browser.open({ url: data.url, windowName: '_self' });
+        } else {
+            // Use Popup on web to avoid "localhost:port" issues when returning
             const width = 500;
             const height = 650;
             const left = window.screen.width / 2 - width / 2;
@@ -128,37 +134,19 @@ export const AuthScreen: React.FC<Props> = ({ onLogin, isSupabaseReachable = tru
               `width=${width},height=${height},left=${left},top=${top},status=no,menubar=no,toolbar=no`
             );
 
-            // Check if popup was blocked
-            if (!popup || popup.closed || typeof popup.closed === 'undefined') {
-                setError("Le popup de connexion a été bloqué. Veuillez autoriser les popups pour ce site dans les réglages de votre navigateur.");
+            if (!popup) {
+                setError("Le popup de connexion a été bloqué.");
                 setLoading(false);
                 return;
             }
 
-            // Poll to see if popup is closed (user cancelled)
             const timer = setInterval(() => {
                 if (popup.closed) {
                     clearInterval(timer);
-                    setLoading(false); // Reset loading state if closed without success
+                    setLoading(false);
                 }
             }, 1000);
-          }
-      } else {
-          // In APK or standard web, use normal redirect (no popup)
-          // This fixes the issue where window.open opens the external browser in APKs
-          const { error } = await supabase.auth.signInWithOAuth({
-            provider: provider,
-            options: {
-              redirectTo: currentOrigin,
-              // skipBrowserRedirect is false by default, so it will redirect the current window
-              queryParams: {
-                access_type: 'offline',
-                prompt: 'consent',
-              }
-            }
-          });
-          
-          if (error) throw error;
+        }
       }
     } catch (err: any) {
       console.error("OAuth Error:", err);
