@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { App as CapApp } from '@capacitor/app';
 import { supabase } from './lib/supabase';
 import { MOCK_RESTAURANTS } from './constants';
 import { Restaurant, User, UserRole, MenuItem, BusinessType, Theme, Language, AppFont } from './types';
@@ -103,6 +104,32 @@ function App() {
 
     initSession();
 
+    // Native Deep Link handling for Google OAuth
+    const setupDeepLinks = async () => {
+        const listener = await CapApp.addListener('appUrlOpen', async (data: any) => {
+            const url = new URL(data.url);
+            // Supabase session data is often in the hash for OAuth redirects
+            if (url.hash && (url.hash.includes('access_token') || url.hash.includes('refresh_token'))) {
+                // Remove the # to parse as search params
+                const params = new URLSearchParams(url.hash.substring(1));
+                const access_token = params.get('access_token');
+                const refresh_token = params.get('refresh_token');
+
+                if (access_token && refresh_token) {
+                    const { error } = await supabase.auth.setSession({
+                        access_token,
+                        refresh_token,
+                    });
+                    if (error) console.error("Error setting native session:", error.message);
+                    // The onAuthStateChange will trigger fetchUserProfile
+                }
+            }
+        });
+        return listener;
+    };
+
+    const deepLinkListenerPromise = setupDeepLinks();
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
         fetchUserProfile(session.user.id, session.user.email!, session.user.user_metadata);
@@ -114,7 +141,10 @@ function App() {
 
     fetchRestaurants();
 
-    return () => subscription.unsubscribe();
+    return () => {
+        subscription.unsubscribe();
+        deepLinkListenerPromise.then(l => l.remove());
+    };
   }, []);
 
   const fetchUserProfile = async (userId: string, email: string, metadata: any = {}) => {
