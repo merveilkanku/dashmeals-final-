@@ -90,8 +90,11 @@ export const BusinessDashboard: React.FC<Props> = ({ user, restaurant, onUpdateR
   };
 
   // Menu Management State
-  const [isAddingItem, setIsAddingItem] = useState(false);
-  const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
+  const [isAddingItem, setIsAddingItem] = useState(() => localStorage.getItem('dashpro_is_adding_item') === 'true');
+  const [editingItem, setEditingItem] = useState<MenuItem | null>(() => {
+      const saved = localStorage.getItem('dashpro_editing_item');
+      return saved ? JSON.parse(saved) : null;
+  });
   const [loading, setLoading] = useState(false);
   const [updatingTimes, setUpdatingTimes] = useState(false);
 
@@ -213,12 +216,40 @@ export const BusinessDashboard: React.FC<Props> = ({ user, restaurant, onUpdateR
   const [deliveryTime, setDeliveryTime] = useState(restaurant.estimatedDeliveryTime?.toString() || '');
 
   // New Item State
-  const [newItemName, setNewItemName] = useState('');
-  const [newItemDesc, setNewItemDesc] = useState('');
-  const [newItemPrice, setNewItemPrice] = useState('');
-  const [newItemStock, setNewItemStock] = useState('');
-  const [newItemCategory, setNewItemCategory] = useState<MenuItem['category']>('plat');
+  const [newItemName, setNewItemName] = useState(() => localStorage.getItem('dashpro_new_item_name') || '');
+  const [newItemDesc, setNewItemDesc] = useState(() => localStorage.getItem('dashpro_new_item_desc') || '');
+  const [newItemPrice, setNewItemPrice] = useState(() => localStorage.getItem('dashpro_new_item_price') || '');
+  const [newItemStock, setNewItemStock] = useState(() => localStorage.getItem('dashpro_new_item_stock') || '');
+  const [newItemCategory, setNewItemCategory] = useState<MenuItem['category']>(() => (localStorage.getItem('dashpro_new_item_category') as MenuItem['category']) || 'plat');
   const [newItemImageFile, setNewItemImageFile] = useState<File | null>(null);
+
+  // Persistence for New Item Form
+  useEffect(() => {
+      localStorage.setItem('dashpro_is_adding_item', isAddingItem.toString());
+      localStorage.setItem('dashpro_editing_item', JSON.stringify(editingItem));
+      localStorage.setItem('dashpro_new_item_name', newItemName);
+      localStorage.setItem('dashpro_new_item_desc', newItemDesc);
+      localStorage.setItem('dashpro_new_item_price', newItemPrice);
+      localStorage.setItem('dashpro_new_item_stock', newItemStock);
+      localStorage.setItem('dashpro_new_item_category', newItemCategory);
+  }, [isAddingItem, editingItem, newItemName, newItemDesc, newItemPrice, newItemStock, newItemCategory]);
+
+  const clearNewItemForm = () => {
+      setNewItemName('');
+      setNewItemDesc('');
+      setNewItemPrice('');
+      setNewItemStock('');
+      setNewItemCategory('plat');
+      setEditingItem(null);
+      setIsAddingItem(false);
+      localStorage.removeItem('dashpro_is_adding_item');
+      localStorage.removeItem('dashpro_editing_item');
+      localStorage.removeItem('dashpro_new_item_name');
+      localStorage.removeItem('dashpro_new_item_desc');
+      localStorage.removeItem('dashpro_new_item_price');
+      localStorage.removeItem('dashpro_new_item_stock');
+      localStorage.removeItem('dashpro_new_item_category');
+  };
 
   // Chat State
   
@@ -783,6 +814,7 @@ export const BusinessDashboard: React.FC<Props> = ({ user, restaurant, onUpdateR
       };
 
       try {
+          console.log("Saving settings with payload:", updatePayload);
           const { error } = await supabase.from('restaurants')
             .update(updatePayload)
             .eq('id', restaurant.id);
@@ -886,7 +918,11 @@ export const BusinessDashboard: React.FC<Props> = ({ user, restaurant, onUpdateR
         
         if (newItemImageFile) {
             const uploadedUrl = await uploadImage(newItemImageFile);
-            if (uploadedUrl) imageUrl = uploadedUrl;
+            if (uploadedUrl) {
+                imageUrl = uploadedUrl;
+            } else {
+                toast.error("Échec du téléchargement de l'image. Le plat sera ajouté avec une image par défaut.");
+            }
         }
 
         const payload = {
@@ -905,6 +941,7 @@ export const BusinessDashboard: React.FC<Props> = ({ user, restaurant, onUpdateR
             
             const updatedMenu = restaurant.menu.map(m => m.id === editingItem.id ? { ...m, ...payload } : m);
             onUpdateRestaurant({ ...restaurant, menu: updatedMenu });
+            toast.success("Plat mis à jour avec succès !");
         } else {
             // CREATE
             const newPayload = { ...payload, restaurant_id: restaurant.id, is_available: true };
@@ -918,10 +955,14 @@ export const BusinessDashboard: React.FC<Props> = ({ user, restaurant, onUpdateR
                   category: data.category as any, isAvailable: data.is_available, image: data.image
                 };
                 onUpdateRestaurant({ ...restaurant, menu: [...restaurant.menu, newItem] });
+                toast.success("Plat ajouté au menu !");
             }
         }
-    } catch (err) {
+        clearNewItemForm();
+    } catch (err: any) {
       console.error("Error saving item:", err);
+      toast.error(`Erreur lors de la sauvegarde : ${err.message || 'Problème de connexion'}`);
+
       // Fallback for demo/offline
       if (editingItem) {
           const updatedMenu = restaurant.menu.map(m => m.id === editingItem.id ? { 
@@ -936,11 +977,9 @@ export const BusinessDashboard: React.FC<Props> = ({ user, restaurant, onUpdateR
           };
           onUpdateRestaurant({ ...restaurant, menu: [...restaurant.menu, mockItem] });
       }
+      // Don't clear form on error so user can retry
     } finally {
-      setNewItemName(''); setNewItemDesc(''); setNewItemPrice(''); setNewItemStock('');
-      setIsAddingItem(false); setLoading(false);
-      setNewItemImageFile(null);
-      setEditingItem(null);
+      setLoading(false);
     }
   };
 
@@ -1243,7 +1282,7 @@ export const BusinessDashboard: React.FC<Props> = ({ user, restaurant, onUpdateR
           <div className="flex justify-end mt-4 space-x-3">
             <button
               type="button"
-              onClick={() => setIsAddingItem(false)}
+              onClick={() => clearNewItemForm()}
               className="px-6 py-3 rounded-xl font-bold text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
             >
               Annuler
