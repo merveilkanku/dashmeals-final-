@@ -34,7 +34,7 @@ interface Props {
   setFont?: (f: AppFont) => void;
 }
 
-export const CustomerView: React.FC<Props> = ({ user, allRestaurants, onLogout, theme, setTheme, language, setLanguage, font, setFont }) => {
+export const CustomerView: React.FC<Props> = ({ user, allRestaurants, onUpdateUser, onLogout, theme, setTheme, language, setLanguage, font, setFont }) => {
   const t = useTranslation(language);
   // State
   const [userState, setUserState] = useState<UserState>({
@@ -46,7 +46,7 @@ export const CustomerView: React.FC<Props> = ({ user, allRestaurants, onLogout, 
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [promotionsMap, setPromotionsMap] = useState<Record<string, Promotion[]>>({});
   
-  const [viewMode, setViewMode] = useState<ViewMode>('list');
+  const [viewMode, setViewMode] = useState<ViewMode>(() => (localStorage.getItem('dashmeals_view_mode') as ViewMode) || 'list');
   const [selectedRestaurant, setSelectedRestaurant] = useState<Restaurant | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -73,6 +73,22 @@ export const CustomerView: React.FC<Props> = ({ user, allRestaurants, onLogout, 
   // Story State
   const [activeStoryRestaurant, setActiveStoryRestaurant] = useState<Restaurant | null>(null);
   const [storyStartIndex, setStoryStartIndex] = useState(0);
+
+  // Profile Edit State
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [editName, setEditName] = useState(user.name);
+
+  const saveProfile = async () => {
+      try {
+          const { error } = await supabase.from('profiles').update({ full_name: editName }).eq('id', user.id);
+          if (error) throw error;
+          onUpdateUser({ ...user, name: editName });
+          setIsEditingProfile(false);
+          toast.success("Profil mis à jour !");
+      } catch (err) {
+          toast.error("Erreur lors de la mise à jour.");
+      }
+  };
 
   // History Management
   useEffect(() => {
@@ -107,6 +123,7 @@ export const CustomerView: React.FC<Props> = ({ user, allRestaurants, onLogout, 
       if (mode === viewMode) return;
       window.history.pushState({ view: mode }, '', `#${mode}`);
       setViewMode(mode);
+      localStorage.setItem('dashmeals_view_mode', mode);
   };
 
   const openCart = () => {
@@ -1173,6 +1190,41 @@ export const CustomerView: React.FC<Props> = ({ user, allRestaurants, onLogout, 
                         >
                             Activer les notifications
                         </button>
+                    </div>
+
+                    <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
+                        <h3 className="font-bold text-gray-900 dark:text-white mb-3 flex items-center">
+                            <UserIcon size={20} className="mr-2 text-brand-600"/>
+                            Mon Profil
+                        </h3>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">Nom complet</label>
+                                <div className="flex space-x-2">
+                                    <input
+                                        type="text"
+                                        className="flex-1 p-3 border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg text-sm"
+                                        value={editName}
+                                        onChange={(e) => setEditName(e.target.value)}
+                                    />
+                                    <button
+                                        onClick={saveProfile}
+                                        className="bg-brand-600 text-white px-4 rounded-lg font-bold text-xs"
+                                    >
+                                        Enregistrer
+                                    </button>
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">Email</label>
+                                <input
+                                    type="text"
+                                    disabled
+                                    className="w-full p-3 border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg text-sm opacity-60"
+                                    value={user.email}
+                                />
+                            </div>
+                        </div>
                     </div>
 
                     <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">

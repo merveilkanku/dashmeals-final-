@@ -32,7 +32,7 @@ type DashboardView = 'overview' | 'orders' | 'menu' | 'sales' | 'settings' | 'ma
 
 export const BusinessDashboard: React.FC<Props> = ({ user, restaurant, onUpdateRestaurant, onUpdateUser, onLogout, theme, setTheme, language, setLanguage, font, setFont }) => {
   const t = useTranslation(language);
-  const [activeView, setActiveView] = useState<DashboardView>('overview');
+  const [activeView, setActiveView] = useState<DashboardView>(() => (localStorage.getItem('dashpro_active_view') as DashboardView) || 'overview');
   const [orders, setOrders] = useState<Order[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); // For mobile
   const [activeChatOrder, setActiveChatOrder] = useState<Order | null>(null);
@@ -60,6 +60,7 @@ export const BusinessDashboard: React.FC<Props> = ({ user, restaurant, onUpdateR
       if (view === activeView) return;
       window.history.pushState({ view }, '', `#${view}`);
       setActiveView(view);
+      localStorage.setItem('dashpro_active_view', view);
       setIsSidebarOpen(false);
   };
 
@@ -111,20 +112,25 @@ export const BusinessDashboard: React.FC<Props> = ({ user, restaurant, onUpdateR
   const [promoError, setPromoError] = useState<string | null>(null);
   
   // Settings State
-  const [settingsForm, setSettingsForm] = useState({
-      name: restaurant.name || '',
-      description: restaurant.description || '',
-      coverImage: restaurant.coverImage || '',
-      city: restaurant.city || '',
-      latitude: restaurant.latitude || 0,
-      longitude: restaurant.longitude || 0,
-      phoneNumber: restaurant.phoneNumber || '',
-      currency: restaurant.currency || 'USD',
-      paymentConfig: restaurant.paymentConfig || {
-          acceptCash: true,
-          acceptMobileMoney: false
-      }
+  const [settingsForm, setSettingsForm] = useState(() => {
+      const saved = localStorage.getItem('dashpro_settings_draft');
+      if (saved) return JSON.parse(saved);
+      return {
+          name: restaurant.name || '',
+          description: restaurant.description || '',
+          coverImage: restaurant.coverImage || '',
+          city: restaurant.city || '',
+          latitude: restaurant.latitude || 0,
+          longitude: restaurant.longitude || 0,
+          phoneNumber: restaurant.phoneNumber || '',
+          currency: restaurant.currency || 'USD',
+          paymentConfig: restaurant.paymentConfig || {
+              acceptCash: true,
+              acceptMobileMoney: false
+          }
+      };
   });
+  const [isFormDirty, setIsFormDirty] = useState(!!localStorage.getItem('dashpro_settings_draft'));
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
 
@@ -283,21 +289,32 @@ export const BusinessDashboard: React.FC<Props> = ({ user, restaurant, onUpdateR
     };
   }, [restaurant.id]); // Re-run if restaurant ID changes
 
-  // Sync settings form if restaurant prop changes
+  // Sync settings form if restaurant prop changes, but ONLY if form is not dirty (unsaved changes)
   useEffect(() => {
-      setSettingsForm({
-          name: restaurant.name,
-          description: restaurant.description,
-          coverImage: restaurant.coverImage,
-          city: restaurant.city,
-          phoneNumber: restaurant.phoneNumber || '',
-          currency: restaurant.currency || 'USD',
-          paymentConfig: restaurant.paymentConfig || {
-              acceptCash: true,
-              acceptMobileMoney: false
-          }
-      });
-  }, [restaurant]);
+      if (!isFormDirty) {
+          setSettingsForm({
+              name: restaurant.name,
+              description: restaurant.description,
+              coverImage: restaurant.coverImage,
+              city: restaurant.city,
+              latitude: restaurant.latitude,
+              longitude: restaurant.longitude,
+              phoneNumber: restaurant.phoneNumber || '',
+              currency: restaurant.currency || 'USD',
+              paymentConfig: restaurant.paymentConfig || {
+                  acceptCash: true,
+                  acceptMobileMoney: false
+              }
+          });
+      }
+  }, [restaurant, isFormDirty]);
+
+  // Persist draft to localStorage whenever it changes
+  useEffect(() => {
+      if (isFormDirty) {
+          localStorage.setItem('dashpro_settings_draft', JSON.stringify(settingsForm));
+      }
+  }, [settingsForm, isFormDirty]);
 
   // UPLOAD HELPER FUNCTION
   const uploadImage = async (file: File, bucket: string = 'images'): Promise<string | null> => {
@@ -799,6 +816,8 @@ export const BusinessDashboard: React.FC<Props> = ({ user, restaurant, onUpdateR
           });
           
           setCoverImageFile(null);
+          setIsFormDirty(false);
+          localStorage.removeItem('dashpro_settings_draft');
           toast.success("✅ Paramètres enregistrés avec succès !");
       } catch (err: any) {
           console.error("Error Saving Settings:", err);
@@ -1538,7 +1557,8 @@ export const BusinessDashboard: React.FC<Props> = ({ user, restaurant, onUpdateR
                     <input
                         type="text"
                         className="flex-1 p-4 border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-xl focus:ring-2 focus:ring-brand-500 outline-none transition-all"
-                        defaultValue={user.name}
+                  value={user.name}
+                  onChange={(e) => onUpdateUser({ ...user, name: e.target.value })}
                         id="owner_name_input"
                     />
                     <button 
@@ -1549,15 +1569,14 @@ export const BusinessDashboard: React.FC<Props> = ({ user, restaurant, onUpdateR
                                 const { error } = await supabase.from('profiles').update({ full_name: newName }).eq('id', user.id);
                                 if (error) throw error;
                                 toast.success("Nom mis à jour !");
-                                // Mise à jour locale sans rechargement
-                                onUpdateUser({ ...user, name: newName });
+                      // The state is already updated via onChange
                             } catch (err) {
                                 toast.error("Erreur lors de la mise à jour du nom.");
                             }
                         }}
                         className="bg-brand-600 text-white px-4 rounded-xl font-bold hover:bg-brand-700"
                     >
-                        Mettre à jour
+                  Sauvegarder
                     </button>
                 </div>
             </div>
@@ -1582,7 +1601,10 @@ export const BusinessDashboard: React.FC<Props> = ({ user, restaurant, onUpdateR
               type="text"
               className="w-full p-4 border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-xl focus:ring-2 focus:ring-brand-500 outline-none transition-all"
               value={settingsForm.name}
-              onChange={e => setSettingsForm({ ...settingsForm, name: e.target.value })}
+              onChange={e => {
+                  setSettingsForm({ ...settingsForm, name: e.target.value });
+                  setIsFormDirty(true);
+              }}
             />
           </div>
 
@@ -1593,7 +1615,10 @@ export const BusinessDashboard: React.FC<Props> = ({ user, restaurant, onUpdateR
               className="w-full p-4 border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-xl focus:ring-2 focus:ring-brand-500 outline-none transition-all"
               placeholder="+243..."
               value={settingsForm.phoneNumber}
-              onChange={e => setSettingsForm({ ...settingsForm, phoneNumber: e.target.value })}
+              onChange={e => {
+                  setSettingsForm({ ...settingsForm, phoneNumber: e.target.value });
+                  setIsFormDirty(true);
+              }}
             />
           </div>
 
@@ -1602,7 +1627,10 @@ export const BusinessDashboard: React.FC<Props> = ({ user, restaurant, onUpdateR
             <textarea
               className="w-full p-4 border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-xl focus:ring-2 focus:ring-brand-500 outline-none transition-all h-32"
               value={settingsForm.description}
-              onChange={e => setSettingsForm({ ...settingsForm, description: e.target.value })}
+              onChange={e => {
+                  setSettingsForm({ ...settingsForm, description: e.target.value });
+                  setIsFormDirty(true);
+              }}
             />
           </div>
 
@@ -1613,7 +1641,10 @@ export const BusinessDashboard: React.FC<Props> = ({ user, restaurant, onUpdateR
                 type="text"
                 className="w-full p-4 border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-xl focus:ring-2 focus:ring-brand-500 outline-none transition-all"
                 value={settingsForm.city}
-                onChange={e => setSettingsForm({ ...settingsForm, city: e.target.value })}
+                onChange={e => {
+                    setSettingsForm({ ...settingsForm, city: e.target.value });
+                    setIsFormDirty(true);
+                }}
               />
             </div>
             <div>
@@ -1621,7 +1652,10 @@ export const BusinessDashboard: React.FC<Props> = ({ user, restaurant, onUpdateR
               <select
                 className="w-full p-4 border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-xl focus:ring-2 focus:ring-brand-500 outline-none transition-all"
                 value={settingsForm.currency}
-                onChange={e => setSettingsForm({ ...settingsForm, currency: e.target.value as 'USD' | 'CDF' })}
+                onChange={e => {
+                    setSettingsForm({ ...settingsForm, currency: e.target.value as 'USD' | 'CDF' });
+                    setIsFormDirty(true);
+                }}
               >
                 <option value="USD">Dollar Américain ($)</option>
                 <option value="CDF">Franc Congolais (FC)</option>
@@ -1636,13 +1670,19 @@ export const BusinessDashboard: React.FC<Props> = ({ user, restaurant, onUpdateR
                     type="text"
                     className="w-full p-4 border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-xl focus:ring-2 focus:ring-brand-500 outline-none"
                     value={settingsForm.coverImage}
-                    onChange={e => setSettingsForm({ ...settingsForm, coverImage: e.target.value })}
+                    onChange={e => {
+                        setSettingsForm({ ...settingsForm, coverImage: e.target.value });
+                        setIsFormDirty(true);
+                    }}
                     placeholder="URL ou Upload"
                   />
                    <label className="cursor-pointer bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg font-bold flex items-center justify-center border border-gray-300 dark:border-gray-600">
                         <Upload size={16} className="mr-2"/>
                         {coverImageFile ? 'Image sélectionnée' : 'Uploader une image'}
-                        <input type="file" accept="image/*" className="hidden" onChange={(e) => setCoverImageFile(e.target.files?.[0] || null)} />
+                        <input type="file" accept="image/*" className="hidden" onChange={(e) => {
+                            setCoverImageFile(e.target.files?.[0] || null);
+                            setIsFormDirty(true);
+                        }} />
                     </label>
               </div>
             </div>

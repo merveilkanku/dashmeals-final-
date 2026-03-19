@@ -16,6 +16,7 @@ function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [showAuth, setShowAuth] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadingRestaurants, setLoadingRestaurants] = useState(true);
   const [isOfflineMode, setIsOfflineMode] = useState(false);
   const [isSupabaseReachable, setIsSupabaseReachable] = useState(true);
   const [showSplash, setShowSplash] = useState(true);
@@ -159,7 +160,7 @@ function App() {
   }, []);
 
   const fetchUserProfile = async (userId: string, email: string, metadata: any = {}) => {
-    setLoading(true);
+    if (!currentUser) setLoading(true);
     try {
       // FORCE SUPERADMIN FOR SPECIFIC EMAIL
       if (email === 'irmerveilkanku@gmail.com') {
@@ -248,6 +249,7 @@ function App() {
   };
 
   const fetchRestaurants = async () => {
+    setLoadingRestaurants(true);
     try {
       const { data, error } = await supabase
         .from('restaurants')
@@ -303,6 +305,8 @@ function App() {
       console.warn("Erreur chargement restaurants (403 probable). Utilisation des données MOCK.");
       setRestaurants(MOCK_RESTAURANTS);
       setIsOfflineMode(true);
+    } finally {
+      setLoadingRestaurants(false);
     }
   };
 
@@ -311,6 +315,10 @@ function App() {
     setRestaurants(prev => prev.map(r => r.id === updatedResto.id ? updatedResto : r));
     // Nous ne rappelons PAS fetchRestaurants() ici pour laisser l'UI fluide
     // La prochaine visite ou refresh chargera les données DB.
+  };
+
+  const handleUpdateUser = (updatedUser: User) => {
+      setCurrentUser(updatedUser);
   };
 
   // Fonction pour force la création du restaurant si l'automatisme a échoué
@@ -380,7 +388,10 @@ function App() {
     return <SplashScreen onFinish={() => setShowSplash(false)} />;
   }
 
-  if (loading) {
+  // Only show main loader if we don't have a user OR if we have a user but are still waiting for business data/restaurants
+  const shouldShowLoader = loading || (currentUser && loadingRestaurants);
+
+  if (shouldShowLoader) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-brand-50 dark:bg-gray-900">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-600 dark:border-brand-400"></div>
@@ -540,6 +551,7 @@ function App() {
             user={currentUser} 
             restaurant={myRestaurant} 
             onUpdateRestaurant={handleUpdateRestaurant}
+            onUpdateUser={handleUpdateUser}
             onLogout={handleLogout}
             theme={theme}
             setTheme={setTheme}
@@ -559,6 +571,7 @@ function App() {
       <CustomerView 
         user={currentUser}
         allRestaurants={restaurants}
+        onUpdateUser={handleUpdateUser}
         onLogout={handleLogout}
         theme={theme}
         setTheme={setTheme}
