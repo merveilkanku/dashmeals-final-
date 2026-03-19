@@ -2,7 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { 
   MapPin, ShoppingBag, List, Map, Zap, ArrowLeft, Plus, Bike, Footprints, 
   LogOut, Navigation, Search, X, Receipt, Phone, Info, Image as ImageIcon, 
-  PlayCircle, Settings, Moon, Sun, Globe, CheckCircle, CheckCircle2, Star, Type, Clock, Bell 
+  PlayCircle, Settings, Moon, Sun, Globe, CheckCircle, CheckCircle2, Star, Type, Clock, Bell,
+  User as UserIcon
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '../lib/supabase';
@@ -25,6 +26,7 @@ const SPEED_MOTO = 30;
 interface Props {
   user: User;
   allRestaurants: Restaurant[];
+  onUpdateUser?: (user: User) => void;
   onLogout: () => void;
   theme: Theme;
   setTheme: (t: Theme) => void;
@@ -82,7 +84,7 @@ export const CustomerView: React.FC<Props> = ({ user, allRestaurants, onUpdateUs
       try {
           const { error } = await supabase.from('profiles').update({ full_name: editName }).eq('id', user.id);
           if (error) throw error;
-          onUpdateUser({ ...user, name: editName });
+          if (onUpdateUser) onUpdateUser({ ...user, name: editName });
           setIsEditingProfile(false);
           toast.success("Profil mis à jour !");
       } catch (err) {
