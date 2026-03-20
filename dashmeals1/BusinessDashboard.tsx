@@ -1596,26 +1596,23 @@ export const BusinessDashboard: React.FC<Props> = ({ user, restaurant, onUpdateR
                     <input
                         type="text"
                         className="flex-1 p-4 border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-xl focus:ring-2 focus:ring-brand-500 outline-none transition-all"
-                  value={user.name}
-                  onChange={(e) => onUpdateUser({ ...user, name: e.target.value })}
-                        id="owner_name_input"
+                        value={user.name}
+                        onChange={(e) => onUpdateUser({ ...user, name: e.target.value })}
                     />
                     <button 
                         onClick={async () => {
-                            const newName = (document.getElementById('owner_name_input') as HTMLInputElement).value;
-                            if (!newName) return;
+                            if (!user.name) return;
                             try {
-                                const { error } = await supabase.from('profiles').update({ full_name: newName }).eq('id', user.id);
+                                const { error } = await supabase.from('profiles').update({ full_name: user.name }).eq('id', user.id);
                                 if (error) throw error;
                                 toast.success("Nom mis à jour !");
-                      // The state is already updated via onChange
                             } catch (err) {
                                 toast.error("Erreur lors de la mise à jour du nom.");
                             }
                         }}
                         className="bg-brand-600 text-white px-4 rounded-xl font-bold hover:bg-brand-700"
                     >
-                  Sauvegarder
+                        Sauvegarder
                     </button>
                 </div>
             </div>
