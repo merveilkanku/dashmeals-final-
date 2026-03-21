@@ -13,6 +13,8 @@ import { ChatWindow } from './components/ChatWindow';
 import { useTranslation } from './lib/i18n';
 import { requestNotificationPermission, sendPushNotification } from './utils/notifications';
 import { toast } from 'sonner';
+import { pickImage } from './lib/native-helpers';
+import { Capacitor } from '@capacitor/core';
 
 interface Props {
   user: User;
@@ -302,6 +304,8 @@ const uploadVerificationDocument = async (file: File, type: 'id_card' | 'busines
 // UPLOAD HELPER FUNCTION - CORRIGÉE (sans vérification de session problématique)
 const uploadImage = async (file: File, bucket: string = 'images'): Promise<string | null> => {
     try {
+        if (!file) return null;
+
         // Vérifier la taille du fichier
         let maxSize = 50 * 1024 * 1024; // 50MB par défaut
         let allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/jpg'];
@@ -335,7 +339,10 @@ const uploadImage = async (file: File, bucket: string = 'images'): Promise<strin
         console.log(`📄 Type: ${file.type}, Taille: ${(file.size / 1024).toFixed(2)} KB`);
 
         // Upload du fichier
-        const { error: uploadError } = await supabase.storage.from(bucket).upload(filePath, file, {
+        // On convertit en File si c'est un Blob sans nom pour assurer la compatibilité
+        const finalFile = file instanceof File ? file : new File([file], fileName, { type: file.type });
+
+        const { error: uploadError } = await supabase.storage.from(bucket).upload(filePath, finalFile, {
             cacheControl: '3600',
             upsert: false
         });
@@ -1316,12 +1323,29 @@ const uploadImage = async (file: File, bucket: string = 'images'): Promise<strin
             <div className="md:col-span-2">
                  <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">Photo du plat</label>
                  <div className="flex items-center space-x-2">
-                    <label className="cursor-pointer bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg font-bold flex items-center">
+                    <button
+                        type="button"
+                        onClick={async () => {
+                            if (Capacitor.isNativePlatform()) {
+                                const result = await pickImage();
+                                if (result) setNewItemImageFile(result.blob as File);
+                            } else {
+                                document.getElementById('item-file-input')?.click();
+                            }
+                        }}
+                        className="cursor-pointer bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg font-bold flex items-center"
+                    >
                         <Upload size={16} className="mr-2"/>
                         {newItemImageFile ? 'Photo sélectionnée' : 'Choisir une photo'}
-                        <input type="file" accept="image/*" className="hidden" onChange={(e) => setNewItemImageFile(e.target.files?.[0] || null)} />
-                    </label>
-                    {newItemImageFile && <span className="text-xs text-brand-600">{newItemImageFile.name}</span>}
+                        <input
+                            id="item-file-input"
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => setNewItemImageFile(e.target.files?.[0] || null)}
+                        />
+                    </button>
+                    {newItemImageFile && <span className="text-xs text-brand-600">{newItemImageFile.name || 'Image native'}</span>}
                  </div>
             </div>
 
@@ -1759,11 +1783,28 @@ const uploadImage = async (file: File, bucket: string = 'images'): Promise<strin
                     onChange={e => setSettingsForm({ ...settingsForm, coverImage: e.target.value })}
                     placeholder="URL ou Upload"
                   />
-                   <label className="cursor-pointer bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg font-bold flex items-center justify-center border border-gray-300 dark:border-gray-600">
+                   <button
+                        type="button"
+                        onClick={async () => {
+                            if (Capacitor.isNativePlatform()) {
+                                const result = await pickImage();
+                                if (result) setCoverImageFile(result.blob as File);
+                            } else {
+                                document.getElementById('cover-file-input')?.click();
+                            }
+                        }}
+                        className="w-full cursor-pointer bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg font-bold flex items-center justify-center border border-gray-300 dark:border-gray-600"
+                    >
                         <Upload size={16} className="mr-2"/>
                         {coverImageFile ? 'Image sélectionnée' : 'Uploader une image'}
-                        <input type="file" accept="image/*" className="hidden" onChange={(e) => setCoverImageFile(e.target.files?.[0] || null)} />
-                    </label>
+                        <input
+                            id="cover-file-input"
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => setCoverImageFile(e.target.files?.[0] || null)}
+                        />
+                    </button>
               </div>
             </div>
 
