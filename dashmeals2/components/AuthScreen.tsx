@@ -95,7 +95,7 @@ export const AuthScreen: React.FC<Props> = ({ onLogin, isSupabaseReachable = tru
       }));
 
       const currentOrigin = window.location.origin;
-      const isCapacitor = currentOrigin.startsWith('http://localhost') || currentOrigin.startsWith('capacitor://');
+      const isCapacitor = currentOrigin.startsWith('http://localhost') || currentOrigin.startsWith('capacitor://') || !!(window as any).Capacitor?.platform;
       const redirectTo = isCapacitor ? 'com.dashmeals.android://login-callback' : currentOrigin;
       console.log("OAuth Redirect URL:", redirectTo);
 

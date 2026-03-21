@@ -82,6 +82,12 @@ function App() {
             }
 
             // 2. Normal session initialization
+            // Check if we have session in URL (fallback for some deep link cases)
+            const hasUrlSession = window.location.hash.includes('access_token') || window.location.search.includes('code');
+            if (hasUrlSession) {
+                console.log("Session detected in window.location, Supabase should handle it...");
+            }
+
             const { data: { session }, error } = await supabase.auth.getSession();
             if (error) {
                 console.warn("Erreur session:", error.message);

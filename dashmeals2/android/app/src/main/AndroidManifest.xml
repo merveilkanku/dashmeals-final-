@@ -23,7 +23,8 @@
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="com.dashmeals.android" />
+                <data android:scheme="com.dashmeals.android" android:host="callback" />
+                <data android:scheme="com.dashmeals.android" android:host="login-callback" />
                 <data android:scheme="com.supabase.xistgrankjxcaqypncar" />
             </intent-filter>
         </activity>
