@@ -116,10 +116,28 @@ function App() {
     // Deep Link handling for native OAuth
     CapApp.addListener('appUrlOpen', async (data: any) => {
       console.log('App opened with URL:', data.url);
-      const url = new URL(data.url.replace('#', '?'));
 
-      // Extract code or token from URL
-      const searchParams = new URLSearchParams(url.search);
+      // The incoming URL may look like:
+      // com.dashmeals.android://login-callback#access_token=...&refresh_token=...
+      // OR
+      // com.dashmeals.android://login-callback?code=...
+
+      // Supabase's PKCE flow often returns as query parameters
+      // Supabase's Implicit flow returns as a fragment/hash
+
+      let searchParams: URLSearchParams;
+
+      if (data.url.includes('#')) {
+          // Extract fragments
+          const hashPart = data.url.split('#')[1];
+          searchParams = new URLSearchParams(hashPart);
+      } else if (data.url.includes('?')) {
+          // Extract query params
+          const queryPart = data.url.split('?')[1];
+          searchParams = new URLSearchParams(queryPart);
+      } else {
+          searchParams = new URLSearchParams();
+      }
 
       const code = searchParams.get('code');
       const accessToken = searchParams.get('access_token');
@@ -134,7 +152,7 @@ function App() {
           console.error("Exchange error:", error.message);
         }
       } else if (accessToken && refreshToken) {
-        console.log("Setting session from hash...");
+        console.log("Setting session from hash/params...");
         const { data: { session }, error } = await supabase.auth.setSession({
             access_token: accessToken,
             refresh_token: refreshToken
@@ -146,6 +164,7 @@ function App() {
         }
       } else {
         // Fallback for cases where getSession can detect it automatically
+        // or just to refresh state
         const { data: { session }, error } = await supabase.auth.getSession();
         if (session) {
           await fetchUserProfile(session.user.id, session.user.email!, session.user.user_metadata);

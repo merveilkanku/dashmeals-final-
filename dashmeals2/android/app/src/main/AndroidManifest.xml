@@ -24,7 +24,6 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="com.dashmeals.android" />
-                <data android:scheme="com.supabase.xistgrankjxcaqypncar" />
             </intent-filter>
         </activity>
 

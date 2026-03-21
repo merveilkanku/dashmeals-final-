@@ -4,6 +4,7 @@ import { User, UserRole, BusinessType } from '../types';
 import { CITIES_RDC, APP_LOGO_URL } from '../constants';
 import { User as UserIcon, Store, AlertCircle, MapPin, Mail, Phone } from 'lucide-react';
 import { Browser } from '@capacitor/browser';
+import { Capacitor } from '@capacitor/core';
 
 interface Props {
   onLogin: (user: User, businessData?: any) => void;
@@ -95,14 +96,14 @@ export const AuthScreen: React.FC<Props> = ({ onLogin, isSupabaseReachable = tru
       }));
 
       const currentOrigin = window.location.origin;
-      const isCapacitor = currentOrigin.startsWith('http://localhost') || currentOrigin.startsWith('capacitor://');
-      const redirectTo = isCapacitor ? 'com.supabase.xistgrankjxcaqypncar://login-callback' : currentOrigin;
+      const isNative = Capacitor.isNativePlatform();
+      const redirectTo = isNative ? 'com.dashmeals.android://login-callback' : currentOrigin;
       console.log("OAuth Redirect URL:", redirectTo);
 
       // Detect if we are in the AI Studio preview
       const isPreview = currentOrigin.includes('.run.app');
 
-      if (isCapacitor) {
+      if (isNative) {
           // Native Capacitor Flow (Android)
           const { data, error } = await supabase.auth.signInWithOAuth({
             provider: provider,
