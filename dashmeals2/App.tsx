@@ -115,25 +115,19 @@ function App() {
 
     // Deep Link handling for native OAuth
     CapApp.addListener('appUrlOpen', async (data: any) => {
-      console.log('App opened with URL:', data.url);
+      console.log('Native app opened with URL:', data.url);
 
-      // The incoming URL may look like:
-      // com.dashmeals.android://login-callback#access_token=...&refresh_token=...
-      // OR
-      // com.dashmeals.android://login-callback?code=...
+      // Supabase expects tokens in the URL for its own session detection
+      // but in Capacitor we might need to handle them manually if we're redirected back.
 
-      // Supabase's PKCE flow often returns as query parameters
-      // Supabase's Implicit flow returns as a fragment/hash
-
+      // First, we normalize the URL to parse parameters easily
+      // Tokens could be in hash (#) or query string (?)
       let searchParams: URLSearchParams;
-
       if (data.url.includes('#')) {
-          // Extract fragments
-          const hashPart = data.url.split('#')[1];
+          const hashPart = data.url.substring(data.url.indexOf('#') + 1);
           searchParams = new URLSearchParams(hashPart);
       } else if (data.url.includes('?')) {
-          // Extract query params
-          const queryPart = data.url.split('?')[1];
+          const queryPart = data.url.substring(data.url.indexOf('?') + 1);
           searchParams = new URLSearchParams(queryPart);
       } else {
           searchParams = new URLSearchParams();

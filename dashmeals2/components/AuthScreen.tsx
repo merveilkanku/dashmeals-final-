@@ -97,6 +97,7 @@ export const AuthScreen: React.FC<Props> = ({ onLogin, isSupabaseReachable = tru
 
       const currentOrigin = window.location.origin;
       const isNative = Capacitor.isNativePlatform();
+      // On mobile, the redirect MUST be a custom scheme registered in AndroidManifest.xml
       const redirectTo = isNative ? 'com.dashmeals.android://login-callback' : currentOrigin;
       console.log("OAuth Redirect URL:", redirectTo);
 
@@ -172,11 +173,13 @@ export const AuthScreen: React.FC<Props> = ({ onLogin, isSupabaseReachable = tru
       } else {
           // In APK or standard web, use normal redirect (no popup)
           // This fixes the issue where window.open opens the external browser in APKs
-          const { error } = await supabase.auth.signInWithOAuth({
+          const { data, error } = await supabase.auth.signInWithOAuth({
             provider: provider,
             options: {
               redirectTo: redirectTo,
-              // skipBrowserRedirect is false by default, so it will redirect the current window
+              // We use skipBrowserRedirect: isNative because we'll handle opening it ourselves
+              // which is more reliable on Capacitor.
+              skipBrowserRedirect: isNative,
               queryParams: {
                 access_type: 'offline',
                 prompt: 'consent',
@@ -185,6 +188,10 @@ export const AuthScreen: React.FC<Props> = ({ onLogin, isSupabaseReachable = tru
           });
           
           if (error) throw error;
+
+          if (isNative && data?.url) {
+              await Browser.open({ url: data.url });
+          }
       }
     } catch (err: any) {
       console.error("OAuth Error:", err);
