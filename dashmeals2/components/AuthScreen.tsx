@@ -3,6 +3,7 @@ import { supabase, isDefaultProject } from '../lib/supabase';
 import { User, UserRole, BusinessType } from '../types';
 import { CITIES_RDC, APP_LOGO_URL } from '../constants';
 import { User as UserIcon, Store, AlertCircle, MapPin, Mail, Phone } from 'lucide-react';
+import { Browser } from '@capacitor/browser';
 
 interface Props {
   onLogin: (user: User, businessData?: any) => void;
@@ -100,6 +101,28 @@ export const AuthScreen: React.FC<Props> = ({ onLogin, isSupabaseReachable = tru
 
       // Detect if we are in the AI Studio preview
       const isPreview = currentOrigin.includes('.run.app');
+
+      if (isCapacitor) {
+          // Native Capacitor Flow (Android)
+          const { data, error } = await supabase.auth.signInWithOAuth({
+            provider: provider,
+            options: {
+              redirectTo: redirectTo,
+              skipBrowserRedirect: true,
+              queryParams: {
+                access_type: 'offline',
+                prompt: 'consent',
+              }
+            }
+          });
+
+          if (error) throw error;
+          if (data?.url) {
+            // Open external browser for Google login
+            await Browser.open({ url: data.url });
+          }
+          return;
+      }
 
       if (isPreview) {
           // In preview (iframe), we MUST use a popup

@@ -118,10 +118,41 @@ function App() {
       console.log('App opened with URL:', data.url);
       const url = new URL(data.url);
 
-      // Supabase OAuth callback typically puts the token in the hash or search params
-      if (url.hash || url.search) {
-        const { error } = await supabase.auth.getSession();
-        if (error) console.error("Error getting session from deep link:", error.message);
+      // Extract code or token from URL
+      const searchParams = new URLSearchParams(url.search);
+      const hashParams = new URLSearchParams(url.hash.substring(1));
+
+      const code = searchParams.get('code');
+      const accessToken = hashParams.get('access_token');
+      const refreshToken = hashParams.get('refresh_token');
+
+      if (code) {
+        console.log("Exchanging code for session...");
+        const { data: { session }, error } = await supabase.auth.exchangeCodeForSession(code);
+        if (session) {
+          await fetchUserProfile(session.user.id, session.user.email!, session.user.user_metadata);
+        } else if (error) {
+          console.error("Exchange error:", error.message);
+        }
+      } else if (accessToken && refreshToken) {
+        console.log("Setting session from hash...");
+        const { data: { session }, error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken
+        });
+        if (session) {
+          await fetchUserProfile(session.user.id, session.user.email!, session.user.user_metadata);
+        } else if (error) {
+          console.error("Session set error:", error.message);
+        }
+      } else {
+        // Fallback for cases where getSession can detect it automatically
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (session) {
+          await fetchUserProfile(session.user.id, session.user.email!, session.user.user_metadata);
+        } else if (error) {
+          console.error("Error getting session from deep link:", error.message);
+        }
       }
     });
 
