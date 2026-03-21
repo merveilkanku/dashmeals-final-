@@ -9,6 +9,7 @@ import { SuperAdminDashboard } from './components/SuperAdminDashboard';
 import { SplashScreen } from './components/SplashScreen';
 import { AlertTriangle, Store, ArrowRight } from 'lucide-react';
 import { Toaster } from 'sonner';
+import { App as CapApp } from '@capacitor/app';
 
 function App() {
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
@@ -112,9 +113,24 @@ function App() {
       }
     });
 
+    // Deep Link handling for native OAuth
+    CapApp.addListener('appUrlOpen', async (data: any) => {
+      console.log('App opened with URL:', data.url);
+      const url = new URL(data.url);
+
+      // Supabase OAuth callback typically puts the token in the hash or search params
+      if (url.hash || url.search) {
+        const { error } = await supabase.auth.getSession();
+        if (error) console.error("Error getting session from deep link:", error.message);
+      }
+    });
+
     fetchRestaurants();
 
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+      CapApp.removeAllListeners();
+    };
   }, []);
 
   const fetchUserProfile = async (userId: string, email: string, metadata: any = {}) => {

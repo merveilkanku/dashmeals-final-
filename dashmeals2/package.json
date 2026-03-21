@@ -19,6 +19,12 @@
     "sonner": "^2.0.7"
   },
   "devDependencies": {
+    "@capacitor/android": "^8.2.0",
+    "@capacitor/app": "^8.0.1",
+    "@capacitor/assets": "^3.0.5",
+    "@capacitor/browser": "^8.0.2",
+    "@capacitor/cli": "^8.2.0",
+    "@capacitor/core": "^8.2.0",
     "@tailwindcss/postcss": "^4.2.1",
     "@types/leaflet": "^1.9.21",
     "@types/node": "^22.14.0",
