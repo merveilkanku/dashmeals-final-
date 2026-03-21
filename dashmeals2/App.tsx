@@ -116,15 +116,14 @@ function App() {
     // Deep Link handling for native OAuth
     CapApp.addListener('appUrlOpen', async (data: any) => {
       console.log('App opened with URL:', data.url);
-      const url = new URL(data.url);
+      const url = new URL(data.url.replace('#', '?'));
 
       // Extract code or token from URL
       const searchParams = new URLSearchParams(url.search);
-      const hashParams = new URLSearchParams(url.hash.substring(1));
 
       const code = searchParams.get('code');
-      const accessToken = hashParams.get('access_token');
-      const refreshToken = hashParams.get('refresh_token');
+      const accessToken = searchParams.get('access_token');
+      const refreshToken = searchParams.get('refresh_token');
 
       if (code) {
         console.log("Exchanging code for session...");

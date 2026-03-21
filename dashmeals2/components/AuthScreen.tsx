@@ -96,7 +96,7 @@ export const AuthScreen: React.FC<Props> = ({ onLogin, isSupabaseReachable = tru
 
       const currentOrigin = window.location.origin;
       const isCapacitor = currentOrigin.startsWith('http://localhost') || currentOrigin.startsWith('capacitor://');
-      const redirectTo = isCapacitor ? 'com.dashmeals.android://login-callback' : currentOrigin;
+      const redirectTo = isCapacitor ? 'com.supabase.xistgrankjxcaqypncar://login-callback' : currentOrigin;
       console.log("OAuth Redirect URL:", redirectTo);
 
       // Detect if we are in the AI Studio preview
