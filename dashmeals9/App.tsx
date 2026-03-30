@@ -11,6 +11,7 @@ import { SecurityLock } from './components/SecurityLock';
 import { AlertTriangle, Store, ArrowRight } from 'lucide-react';
 import { Toaster } from 'sonner';
 import { motion, AnimatePresence } from 'motion/react';
+import { App as CapApp } from '@capacitor/app';
 
 const OfflineBanner = ({ isSupabaseReachable }: { isSupabaseReachable: boolean }) => (!isSupabaseReachable) ? (
   <div className="bg-red-600 text-white text-xs font-bold px-4 py-1 text-center flex justify-center items-center sticky top-0 z-50">
@@ -129,6 +130,35 @@ function App() {
     };
 
     initSession();
+
+    // Deep link handling for Capacitor (Supabase OAuth)
+    CapApp.addListener('appUrlOpen', async (event) => {
+        const url = new URL(event.url);
+
+        // Handle deep link (Supabase OAuth callback)
+        if (event.url.includes('access_token') || event.url.includes('error') || event.url.includes('code')) {
+            // Hash contains tokens if using implicit flow
+            const hash = url.hash.substring(1);
+            if (hash) {
+                const params = new URLSearchParams(hash);
+                const accessToken = params.get('access_token');
+                const refreshToken = params.get('refresh_token');
+
+                if (accessToken && refreshToken) {
+                    await supabase.auth.setSession({
+                        access_token: accessToken,
+                        refresh_token: refreshToken
+                    });
+                }
+            } else {
+                // If using PKCE code exchange
+                const code = url.searchParams.get('code');
+                if (code) {
+                    await supabase.auth.exchangeCodeForSession(code);
+                }
+            }
+        }
+    });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {

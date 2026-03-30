@@ -100,10 +100,14 @@ export const AuthScreen: React.FC<Props> = ({ onLogin, isSupabaseReachable = tru
       }));
 
       const currentOrigin = window.location.origin;
-      console.log("OAuth Redirect URL:", currentOrigin);
+      const isApp = window.location.protocol === 'capacitor:';
+
+      // For APK, use deep link redirect
+      const redirectTo = isApp ? 'com.dashmeals.android://login-callback' : currentOrigin;
+      console.log("OAuth Redirect URL:", redirectTo);
 
       // Detect if we are in the AI Studio preview
-      const isPreview = currentOrigin.includes('.run.app');
+      const isPreview = currentOrigin.includes('.run.app') && !isApp;
 
       if (isPreview) {
           // In preview (iframe), we MUST use a popup
@@ -155,7 +159,7 @@ export const AuthScreen: React.FC<Props> = ({ onLogin, isSupabaseReachable = tru
           const { error } = await supabase.auth.signInWithOAuth({
             provider: provider,
             options: {
-              redirectTo: currentOrigin,
+              redirectTo: redirectTo,
               // skipBrowserRedirect is false by default, so it will redirect the current window
               queryParams: {
                 access_type: 'offline',

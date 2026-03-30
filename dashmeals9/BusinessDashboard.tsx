@@ -15,6 +15,8 @@ import { requestNotificationPermission, sendPushNotification } from './utils/not
 import { PinSetupDialog } from './components/PinSetupDialog';
 import { toast } from 'sonner';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
+import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
+import { Filesystem, Directory } from '@capacitor/filesystem';
 
 interface Props {
   user: User;
@@ -683,6 +685,27 @@ export const BusinessDashboard: React.FC<Props> = ({ user, restaurant, onUpdateR
       setIsRefreshing(true);
       await fetchRestaurantOrders();
       setIsRefreshing(false);
+  };
+
+  const pickImage = async (source: CameraSource = CameraSource.Prompt): Promise<File | null> => {
+    try {
+      const image = await Camera.getPhoto({
+        quality: 90,
+        allowEditing: false,
+        resultType: CameraResultType.Uri,
+        source: source
+      });
+
+      if (image.webPath) {
+        const response = await fetch(image.webPath);
+        const blob = await response.blob();
+        return new File([blob], `photo_${Date.now()}.${image.format}`, { type: blob.type });
+      }
+      return null;
+    } catch (err) {
+      console.error("Camera error:", err);
+      return null;
+    }
   };
 
   const uploadImage = async (file: File, bucket: string = 'images'): Promise<string | null> => {
@@ -1680,11 +1703,17 @@ export const BusinessDashboard: React.FC<Props> = ({ user, restaurant, onUpdateR
             <div className="md:col-span-2">
                  <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">Photo du plat</label>
                  <div className="flex items-center space-x-2">
-                    <label className="cursor-pointer bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg font-bold flex items-center">
+                    <button
+                        type="button"
+                        onClick={async () => {
+                            const file = await pickImage();
+                            if (file) setNewItemImageFile(file);
+                        }}
+                        className="bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg font-bold flex items-center"
+                    >
                         <Upload size={16} className="mr-2"/>
-                        {newItemImageFile ? 'Photo sélectionnée' : 'Choisir une photo'}
-                        <input type="file" accept="image/*" className="hidden" onChange={(e) => setNewItemImageFile(e.target.files?.[0] || null)} />
-                    </label>
+                        {newItemImageFile ? 'Photo sélectionnée' : 'Prendre/Choisir une photo'}
+                    </button>
                     {newItemImageFile && <span className="text-xs text-brand-600">{newItemImageFile.name}</span>}
                  </div>
             </div>
@@ -2431,11 +2460,17 @@ export const BusinessDashboard: React.FC<Props> = ({ user, restaurant, onUpdateR
                                     onChange={e => setSettingsForm({ ...settingsForm, coverImage: e.target.value })}
                                     placeholder="URL ou Upload"
                                 />
-                                <label className="cursor-pointer bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg font-bold flex items-center justify-center border border-gray-300 dark:border-gray-600">
+                                <button
+                                    type="button"
+                                    onClick={async () => {
+                                        const file = await pickImage();
+                                        if (file) setCoverImageFile(file);
+                                    }}
+                                    className="w-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg font-bold flex items-center justify-center border border-gray-300 dark:border-gray-600"
+                                >
                                     <Upload size={16} className="mr-2"/>
                                     {coverImageFile ? 'Image sélectionnée' : 'Uploader une image'}
-                                    <input type="file" accept="image/*" className="hidden" onChange={(e) => setCoverImageFile(e.target.files?.[0] || null)} />
-                                </label>
+                                </button>
                             </div>
                         </div>
 
