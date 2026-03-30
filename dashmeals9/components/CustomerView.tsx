@@ -19,6 +19,7 @@ import { OrdersView } from './OrdersView';
 import { useTranslation } from '../lib/i18n';
 import { PinSetupDialog } from './PinSetupDialog';
 import { requestNotificationPermission, sendPushNotification } from '../utils/notifications';
+import { Geolocation } from '@capacitor/geolocation';
 
 // Speed constants
 const SPEED_WALKING = 5;
@@ -303,61 +304,90 @@ export const CustomerView: React.FC<Props> = ({ user, allRestaurants, onLogout, 
   };
 
   // Geolocation Function
-  const refreshLocation = () => {
+  const refreshLocation = async () => {
     setUserState(prev => ({ ...prev, loadingLocation: true, locationError: null }));
     
-    if (!navigator.geolocation) {
-      setUserState({
-        location: null,
-        locationError: "La géolocalisation n'est pas supportée par votre navigateur",
-        loadingLocation: false
-      });
-      return;
-    }
+    try {
+        const isApp = window.location.protocol === 'capacitor:';
 
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setUserState({
-          location: {
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
-          },
-          locationError: null,
-          loadingLocation: false
-        });
-      },
-      (error) => {
-        console.warn("Geo error:", error);
-        // Fallback to IP geolocation if GPS fails
-        fetch('https://ipapi.co/json/')
-          .then(res => res.json())
-          .then(data => {
-            if (data.latitude && data.longitude) {
-              setUserState({
-                location: {
-                  latitude: data.latitude,
-                  longitude: data.longitude
-                },
-                locationError: "Position GPS introuvable. Utilisation de la position réseau.",
-                loadingLocation: false
-              });
-            } else {
-              throw new Error("IP Geo failed");
+        if (isApp) {
+            // Request permissions if needed
+            const permissions = await Geolocation.requestPermissions();
+            if (permissions.location !== 'granted') {
+                throw new Error("Permission de localisation refusée");
             }
-          })
-          .catch(err => {
+
+            const position = await Geolocation.getCurrentPosition({
+                enableHighAccuracy: true,
+                timeout: 10000
+            });
+
             setUserState({
                 location: {
-                    latitude: KINSHASA_CENTER_LAT,
-                    longitude: KINSHASA_CENTER_LNG
+                    latitude: position.coords.latitude,
+                    longitude: position.coords.longitude,
                 },
-                locationError: "Position introuvable. Utilisation de la position par défaut (Kinshasa).",
+                locationError: null,
                 loadingLocation: false
             });
+        } else {
+            // Standard Web Geolocation
+            if (!navigator.geolocation) {
+                throw new Error("La géolocalisation n'est pas supportée");
+            }
+
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    setUserState({
+                        location: {
+                            latitude: position.coords.latitude,
+                            longitude: position.coords.longitude,
+                        },
+                        locationError: null,
+                        loadingLocation: false
+                    });
+                },
+                (error) => {
+                    console.warn("Geo error:", error);
+                    fallbackLocation();
+                },
+                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+            );
+        }
+    } catch (err: any) {
+        console.error("Location error:", err);
+        fallbackLocation(err.message);
+    }
+  };
+
+  const fallbackLocation = (msg?: string) => {
+      // Fallback to IP geolocation if GPS fails
+      fetch('https://ipapi.co/json/')
+      .then(res => res.json())
+      .then(data => {
+        if (data.latitude && data.longitude) {
+          setUserState({
+            location: {
+              latitude: data.latitude,
+              longitude: data.longitude
+            },
+            locationError: msg || "Position GPS introuvable. Utilisation de la position réseau.",
+            loadingLocation: false
           });
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-    );
+        } else {
+          throw new Error("IP Geo failed");
+        }
+      })
+      .catch(err => {
+        setUserState({
+            location: {
+                latitude: KINSHASA_CENTER_LAT,
+                longitude: KINSHASA_CENTER_LNG
+            },
+            locationError: "Position introuvable. Utilisation de la position par défaut (Kinshasa).",
+            loadingLocation: false
+        });
+      });
   };
 
   // Initial Geolocation
