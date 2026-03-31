@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Lock, Fingerprint, Shield, X, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
+import { NativeBiometric } from '@capgo/capacitor-native-biometric';
 
 interface Props {
   isEnabled: boolean;
@@ -18,7 +19,7 @@ export const SecurityLock: React.FC<Props> = ({ isEnabled, correctPin, biometric
   useEffect(() => {
     if (isEnabled) {
       // Check if we should auto-unlock with biometrics
-      if (biometricsEnabled && window.PublicKeyCredential) {
+      if (biometricsEnabled) {
         handleBiometricUnlock();
       }
     }
@@ -26,18 +27,29 @@ export const SecurityLock: React.FC<Props> = ({ isEnabled, correctPin, biometric
 
   const handleBiometricUnlock = async () => {
     try {
-      // This is a simplified WebAuthn check for prototype
-      // In a real app, you'd use a stored credential
-      toast.info("Authentification biométrique en cours...");
-      
-      // Simulate biometric success for demo if supported
-      // In real web apps, this requires complex setup
-      setTimeout(() => {
-        onUnlock();
-        setIsLocked(false);
-      }, 1500);
-    } catch (err) {
+      const isApp = window.location.protocol === 'capacitor:';
+      if (!isApp) {
+          toast.info("La biométrie est disponible uniquement sur mobile.");
+          return;
+      }
+
+      const result = await NativeBiometric.isAvailable();
+      if (result.isAvailable) {
+          await NativeBiometric.verify({
+              reason: "Veuillez vous authentifier pour déverrouiller l'application",
+              title: "Déverrouillage DashMeals",
+              subtitle: "Utilisez votre empreinte ou Face ID",
+              description: "Sécurisez vos accès"
+          });
+          onUnlock();
+          setIsLocked(false);
+      } else {
+          toast.error("Authentification biométrique non disponible sur cet appareil.");
+      }
+    } catch (err: any) {
       console.error("Biometric error:", err);
+      if (err.message?.includes('cancel')) return;
+      toast.error("Échec de l'authentification biométrique.");
     }
   };
 

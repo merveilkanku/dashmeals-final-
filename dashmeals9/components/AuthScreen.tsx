@@ -4,6 +4,7 @@ import { User, UserRole, BusinessType } from '../types';
 import { CITIES_RDC, APP_LOGO_URL } from '../constants';
 import { User as UserIcon, Store, AlertCircle, MapPin, Mail, Phone, KeyRound, Users } from 'lucide-react';
 import { Browser } from '@capacitor/browser';
+import { Capacitor } from '@capacitor/core';
 
 interface Props {
   onLogin: (user: User, businessData?: any) => void;
@@ -101,7 +102,7 @@ export const AuthScreen: React.FC<Props> = ({ onLogin, isSupabaseReachable = tru
       }));
 
       const currentOrigin = window.location.origin;
-      const isApp = window.location.protocol === 'capacitor:';
+      const isApp = Capacitor.isNativePlatform();
 
       // For APK, use deep link redirect
       const redirectTo = isApp ? 'com.dashmeals.android://login-callback' : currentOrigin;
