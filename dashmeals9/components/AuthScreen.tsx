@@ -3,6 +3,7 @@ import { supabase, isDefaultProject } from '../lib/supabase';
 import { User, UserRole, BusinessType } from '../types';
 import { CITIES_RDC, APP_LOGO_URL } from '../constants';
 import { User as UserIcon, Store, AlertCircle, MapPin, Mail, Phone, KeyRound, Users } from 'lucide-react';
+import { Browser } from '@capacitor/browser';
 
 interface Props {
   onLogin: (user: User, businessData?: any) => void;
@@ -153,14 +154,31 @@ export const AuthScreen: React.FC<Props> = ({ onLogin, isSupabaseReachable = tru
                 }
             }, 1000);
           }
+      } else if (isApp) {
+          // In APK, use Browser plugin to open system browser for OAuth
+          // This ensures the redirect returns via deep link (com.dashmeals.android://)
+          const { data, error } = await supabase.auth.signInWithOAuth({
+            provider: provider,
+            options: {
+              redirectTo: redirectTo,
+              skipBrowserRedirect: true,
+              queryParams: {
+                access_type: 'offline',
+                prompt: 'consent',
+              }
+            }
+          });
+
+          if (error) throw error;
+          if (data?.url) {
+            await Browser.open({ url: data.url });
+          }
       } else {
-          // In APK or standard web, use normal redirect (no popup)
-          // This fixes the issue where window.open opens the external browser in APKs
+          // Standard web redirect
           const { error } = await supabase.auth.signInWithOAuth({
             provider: provider,
             options: {
               redirectTo: redirectTo,
-              // skipBrowserRedirect is false by default, so it will redirect the current window
               queryParams: {
                 access_type: 'offline',
                 prompt: 'consent',
