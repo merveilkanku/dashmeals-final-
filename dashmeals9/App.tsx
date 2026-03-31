@@ -12,6 +12,7 @@ import { AlertTriangle, Store, ArrowRight } from 'lucide-react';
 import { Toaster } from 'sonner';
 import { motion, AnimatePresence } from 'motion/react';
 import { App as CapApp } from '@capacitor/app';
+import { Browser } from '@capacitor/browser';
 
 const OfflineBanner = ({ isSupabaseReachable }: { isSupabaseReachable: boolean }) => (!isSupabaseReachable) ? (
   <div className="bg-red-600 text-white text-xs font-bold px-4 py-1 text-center flex justify-center items-center sticky top-0 z-50">
@@ -157,6 +158,8 @@ function App() {
                     await supabase.auth.exchangeCodeForSession(code);
                 }
             }
+            // Close the browser plugin if it was opened
+            await Browser.close();
         }
     });
 

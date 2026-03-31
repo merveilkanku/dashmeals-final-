@@ -1883,14 +1883,15 @@ export const BusinessDashboard: React.FC<Props> = ({ user, restaurant, onUpdateR
                             />
                         </div>
                         <div>
-                            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">Photo Carte d'Identité / Passeport</label>
+                            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">Photo Carte d'Identité / Passeport / PDF</label>
                             <input 
                                 type="file" 
-                                accept="image/*"
+                                accept="image/*,application/pdf"
                                 className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
                                 onChange={e => setIdCardFile(e.target.files?.[0] || null)}
                                 disabled={restaurant.verificationStatus === 'pending'}
                             />
+                            <p className="text-[10px] text-gray-400 mt-1">Formats acceptés : JPG, PNG, PDF (Max 10MB)</p>
                         </div>
                         {restaurant.verificationStatus !== 'pending' && (
                             <button 
@@ -1992,12 +1993,12 @@ export const BusinessDashboard: React.FC<Props> = ({ user, restaurant, onUpdateR
                                 </p>
                                 <button 
                                     onClick={() => {
-                                        toast.info(`Voir le produit: ${item.name}`);
-                                        window.location.href = `/restaurant/${item.restaurant_id}`;
+                                        toast.info(`Article: ${item.name} - Restaurant: ${restaurantName}`);
+                                        // On ne redirige pas via window.location.href pour éviter de quitter l'app business
                                     }}
                                     className="w-full py-2 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl text-xs font-bold hover:bg-brand-600 hover:text-white transition-colors flex items-center justify-center"
                                 >
-                                    <ShoppingBag size={14} className="mr-2" /> Voir l'article
+                                    <ShoppingBag size={14} className="mr-2" /> Détails
                                 </button>
                             </div>
                         </div>
