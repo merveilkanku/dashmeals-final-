@@ -207,6 +207,7 @@ export const BusinessDashboard: React.FC<Props> = ({ user, restaurant, onUpdateR
   const [newStaffPin, setNewStaffPin] = useState('');
   const [isSavingStaff, setIsSavingStaff] = useState(false);
   const [automatedCampaigns, setAutomatedCampaigns] = useState<any[]>([]);
+  const [selectedMarketProduct, setSelectedMarketProduct] = useState<any | null>(null);
 
   useEffect(() => {
     if (activeView === 'marketplace') {
@@ -1992,10 +1993,7 @@ export const BusinessDashboard: React.FC<Props> = ({ user, restaurant, onUpdateR
                                     {item.description || 'Aucune description'}
                                 </p>
                                 <button 
-                                    onClick={() => {
-                                        toast.info(`Article: ${item.name} - Restaurant: ${restaurantName}`);
-                                        // On ne redirige pas via window.location.href pour éviter de quitter l'app business
-                                    }}
+                                    onClick={() => setSelectedMarketProduct(item)}
                                     className="w-full py-2 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl text-xs font-bold hover:bg-brand-600 hover:text-white transition-colors flex items-center justify-center"
                                 >
                                     <ShoppingBag size={14} className="mr-2" /> Détails
@@ -3573,6 +3571,79 @@ export const BusinessDashboard: React.FC<Props> = ({ user, restaurant, onUpdateR
           {activeView === 'team' && renderTeam()}
           {activeView === 'settings' && renderSettings()}
       </main>
+
+      {/* Marketplace Product Detail Modal */}
+      {selectedMarketProduct && (
+          <div className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
+              <div className="bg-white dark:bg-gray-800 w-full max-w-lg rounded-3xl overflow-hidden shadow-2xl relative animate-in zoom-in-95 duration-300">
+                  <button
+                      onClick={() => setSelectedMarketProduct(null)}
+                      className="absolute top-4 right-4 z-10 bg-black/20 hover:bg-black/40 text-white p-2 rounded-full backdrop-blur-md transition-colors"
+                  >
+                      <X size={20} />
+                  </button>
+
+                  <div className="h-64 relative">
+                      <img
+                          src={selectedMarketProduct.image || 'https://picsum.photos/seed/food/800/600'}
+                          className="w-full h-full object-cover"
+                          alt={selectedMarketProduct.name}
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+                      <div className="absolute bottom-4 left-6">
+                          <h2 className="text-3xl font-black text-white">{selectedMarketProduct.name}</h2>
+                          <p className="text-brand-200 font-bold flex items-center mt-1">
+                              <ChefHat size={16} className="mr-2" /> {selectedMarketProduct.restaurants?.name}
+                          </p>
+                      </div>
+                  </div>
+
+                  <div className="p-8">
+                      <div className="flex items-center justify-between mb-6">
+                          <div>
+                              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Prix de vente</p>
+                              <p className="text-4xl font-black text-brand-600">{formatPrice(selectedMarketProduct.price)}</p>
+                          </div>
+                          <div className="text-right">
+                              <span className={`px-4 py-2 rounded-xl text-sm font-black flex items-center ${selectedMarketProduct.is_available ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'}`}>
+                                  {selectedMarketProduct.is_available ? <CheckCircle size={16} className="mr-2" /> : <X size={16} className="mr-2" />}
+                                  {selectedMarketProduct.is_available ? 'Disponible' : 'Épuisé'}
+                              </span>
+                          </div>
+                      </div>
+
+                      <div className="space-y-6">
+                          <div>
+                              <h4 className="text-sm font-bold text-gray-900 dark:text-white mb-2 flex items-center">
+                                  <Info size={16} className="mr-2 text-brand-600" /> Description
+                              </h4>
+                              <p className="text-gray-500 dark:text-gray-400 text-sm leading-relaxed">
+                                  {selectedMarketProduct.description || "Aucune description fournie pour cet article."}
+                              </p>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-4 pt-6 border-t border-gray-100 dark:border-gray-700">
+                              <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-2xl">
+                                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Stock</p>
+                                  <p className="font-bold text-gray-900 dark:text-white">{selectedMarketProduct.stock ?? 'Non suivi'}</p>
+                              </div>
+                              <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-2xl">
+                                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Catégorie</p>
+                                  <p className="font-bold text-gray-900 dark:text-white capitalize">{selectedMarketProduct.category}</p>
+                              </div>
+                          </div>
+                      </div>
+
+                      <button
+                          onClick={() => setSelectedMarketProduct(null)}
+                          className="w-full mt-8 py-4 bg-brand-600 text-white rounded-2xl font-black shadow-xl shadow-brand-500/20 hover:bg-brand-700 transition-all active:scale-95"
+                      >
+                          Fermer
+                      </button>
+                  </div>
+              </div>
+          </div>
+      )}
 
       {/* PIN Setup Dialog */}
       <PinSetupDialog 
