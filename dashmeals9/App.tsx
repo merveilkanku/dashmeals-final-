@@ -134,32 +134,54 @@ function App() {
 
     // Deep link handling for Capacitor (Supabase OAuth)
     CapApp.addListener('appUrlOpen', async (event) => {
-        const url = new URL(event.url);
+        console.log('App opened with URL:', event.url);
+
+        // Ensure the URL matches our scheme
+        if (!event.url.startsWith('com.dashmeals.android://')) return;
+
+        // Extract parameters from the full URL string manually if needed
+        // as URL parser might behave differently for custom schemes
+        const fullUrl = event.url;
 
         // Handle deep link (Supabase OAuth callback)
-        if (event.url.includes('access_token') || event.url.includes('error') || event.url.includes('code')) {
-            // Hash contains tokens if using implicit flow
-            const hash = url.hash.substring(1);
-            if (hash) {
-                const params = new URLSearchParams(hash);
-                const accessToken = params.get('access_token');
-                const refreshToken = params.get('refresh_token');
+        if (fullUrl.includes('access_token') || fullUrl.includes('error') || fullUrl.includes('code')) {
 
-                if (accessToken && refreshToken) {
-                    await supabase.auth.setSession({
-                        access_token: accessToken,
-                        refresh_token: refreshToken
-                    });
-                }
+            // Try hash first (Implicit flow)
+            let accessToken = null;
+            let refreshToken = null;
+
+            if (fullUrl.includes('#')) {
+                const hash = fullUrl.split('#')[1];
+                const params = new URLSearchParams(hash);
+                accessToken = params.get('access_token');
+                refreshToken = params.get('refresh_token');
+            }
+
+            if (accessToken && refreshToken) {
+                console.log('Setting session from hash tokens');
+                await supabase.auth.setSession({
+                    access_token: accessToken,
+                    refresh_token: refreshToken
+                });
             } else {
-                // If using PKCE code exchange
-                const code = url.searchParams.get('code');
-                if (code) {
-                    await supabase.auth.exchangeCodeForSession(code);
+                // Try search params (PKCE flow or others)
+                const searchPart = fullUrl.split('?')[1];
+                if (searchPart) {
+                    const searchParams = new URLSearchParams(searchPart);
+                    const code = searchParams.get('code');
+                    if (code) {
+                        console.log('Exchanging code for session');
+                        await supabase.auth.exchangeCodeForSession(code);
+                    }
                 }
             }
+
             // Close the browser plugin if it was opened
-            await Browser.close();
+            try {
+                await Browser.close();
+            } catch (e) {
+                console.warn('Could not close browser plugin:', e);
+            }
         }
     });
 

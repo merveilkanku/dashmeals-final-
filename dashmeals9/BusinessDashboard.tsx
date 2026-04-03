@@ -690,6 +690,13 @@ export const BusinessDashboard: React.FC<Props> = ({ user, restaurant, onUpdateR
 
   const pickImage = async (source: CameraSource = CameraSource.Prompt): Promise<File | null> => {
     try {
+      // Explicitly request camera permissions
+      const permResult = await Camera.requestPermissions();
+      if (permResult.camera !== 'granted' && permResult.photos !== 'granted') {
+          toast.error("Permission d'accès à la caméra ou aux photos refusée.");
+          return null;
+      }
+
       const image = await Camera.getPhoto({
         quality: 90,
         allowEditing: false,
@@ -711,6 +718,9 @@ export const BusinessDashboard: React.FC<Props> = ({ user, restaurant, onUpdateR
 
   const uploadImage = async (file: File, bucket: string = 'images'): Promise<string | null> => {
     try {
+        // Request filesystem permissions if needed (though often not required for memory blobs)
+        await Filesystem.requestPermissions();
+
         let maxSize = 50 * 1024 * 1024;
         let allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/jpg'];
         

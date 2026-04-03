@@ -105,6 +105,7 @@ export const AuthScreen: React.FC<Props> = ({ onLogin, isSupabaseReachable = tru
       const isApp = Capacitor.isNativePlatform();
 
       // For APK, use deep link redirect
+      // Ensure we have a valid deep link URL that matches Supabase config
       const redirectTo = isApp ? 'com.dashmeals.android://login-callback' : currentOrigin;
       console.log("OAuth Redirect URL:", redirectTo);
 
