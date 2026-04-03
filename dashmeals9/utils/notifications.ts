@@ -1,4 +1,22 @@
+import { PushNotifications } from '@capacitor/push-notifications';
+import { Capacitor } from '@capacitor/core';
+
 export const requestNotificationPermission = async (): Promise<boolean> => {
+    // Handling for Capacitor Android/iOS
+    if (Capacitor.isNativePlatform()) {
+        try {
+            let perm = await PushNotifications.checkPermissions();
+            if (perm.receive === 'prompt') {
+                perm = await PushNotifications.requestPermissions();
+            }
+            return perm.receive === 'granted';
+        } catch (e) {
+            console.error("Error requesting Capacitor push permissions:", e);
+            return false;
+        }
+    }
+
+    // Web handling
     if (!('Notification' in window)) {
         console.warn("Ce navigateur ne supporte pas les notifications push.");
         return false;
@@ -29,30 +47,36 @@ export const requestNotificationPermission = async (): Promise<boolean> => {
     }
 };
 
-export const sendPushNotification = (title: string, options?: NotificationOptions) => {
-    if (!('Notification' in window)) return;
+export const sendPushNotification = (title: string, options?: any) => {
+    // If native platform, we might rely on the native push service itself,
+    // but for local UI feedback we can try to use local notifications or web api if it works
     
-    if (Notification.permission === 'granted') {
+    if (!Capacitor.isNativePlatform()) {
+        if (!('Notification' in window)) return;
+        if (Notification.permission !== 'granted') return;
+
         try {
             // Try to use Service Worker if available (better for mobile/Android)
-            navigator.serviceWorker.ready.then(registration => {
-                (registration as any).showNotification(title, {
-                    icon: '/logo.png', // Fallback icon
-                    vibrate: [200, 100, 200],
-                    ...options
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.ready.then(registration => {
+                    (registration as any).showNotification(title, {
+                        icon: '/logo.png', // Fallback icon
+                        vibrate: [200, 100, 200],
+                        ...options
+                    });
+                }).catch(() => {
+                    new Notification(title, { icon: '/logo.png', ...options });
                 });
-            }).catch(() => {
-                // Fallback to standard Notification
-                new Notification(title, {
-                    icon: '/logo.png',
-                    ...options
-                });
-            });
+            } else {
+                new Notification(title, { icon: '/logo.png', ...options });
+            }
         } catch (e) {
-            new Notification(title, {
-                icon: '/logo.png',
-                ...options
-            });
+            new Notification(title, { icon: '/logo.png', ...options });
         }
+    } else {
+        // On native, we'd typically use a local notifications plugin for immediate local feedback
+        // if not using a real push notification service.
+        // For now, let's just log and rely on the permission check for the UI to be satisfied.
+        console.log("Push Notification (Native):", title, options);
     }
 };
